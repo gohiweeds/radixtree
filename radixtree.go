@@ -119,9 +119,9 @@ func (n *node) addChild(c *node) {
 }
 
 func (n *node) findChild(l byte) *node {
-	for _, c := range n.children {
+	for k, c := range n.children {
 		if c.label == l {
-			return c
+			return n.children[k]
 		}
 	}
 	return nil
@@ -172,8 +172,6 @@ func (t *RadixTree) Find(path string) bool {
 			//Continue search
 			search = search[l:]
 		} else {
-			//			cn = nn
-			//			search = ns
 
 		}
 
@@ -206,6 +204,7 @@ func (t *RadixTree) Find(path string) bool {
 func (n *node) walkNode() {
 	for _, v := range n.children {
 		log.Printf("label=%d, prefix=%s, ppath=%s\n", v.label, v.prefix, v.ppath)
+		v.walkNode()
 	}
 
 }
@@ -214,5 +213,114 @@ func (t *RadixTree) WalkAll() {
 	for _, v := range t.tree.children {
 		log.Printf("label=%d, prefix=%s, ppath=%s\n", v.label, v.prefix, v.ppath)
 		v.walkNode()
+	}
+}
+
+func (c children) Len() int {
+	return len(c)
+}
+func remove(slice children, elem *node) children {
+	if slice.Len() == 0 {
+		return slice
+	}
+	for i, v := range slice {
+		if v == elem {
+			if v.children.Len() > 0 && slice[i].ppath != "" {
+				slice[i].ppath = ""
+			} else {
+				log.Printf("slice=%p", slice)
+				slice = append(slice[:i], slice[i+1:]...)
+				//return remove(slice, elem)
+				log.Printf("remove ok %d, prefix=%s\n", slice.Len(), elem.prefix)
+			}
+			break
+		}
+	}
+
+	//	for _, v := range slice {
+	//		log.Printf("label=%d, prefix=%s\n", v.label, v.prefix)
+	//	}
+	return slice
+}
+
+func (t *RadixTree) Delete(path string) bool {
+	result := t.Find(path)
+	if result == false {
+		return false
+	}
+
+	cn := t.tree //Current node as root
+	var (
+		search = path
+		child  *node //Child node
+		parent *node = nil
+		//		n      int    //Param counter
+		//		nn *node  //Next node
+		//		ns string //Next search
+	)
+
+	//Search order static > param > any
+	for {
+		if search == "" {
+			//goto End
+			return false
+		}
+
+		pl := 0 //Prefix length
+		l := 0  //LCP length
+
+		sl := len(search)
+		pl = len(cn.prefix)
+
+		//LCP
+		max := pl
+		if sl < max {
+			max = sl
+		}
+
+		for ; l < max && search[l] == cn.prefix[l]; l++ {
+		}
+
+		if l == pl {
+			//Continue search
+			search = search[l:]
+		} else {
+			//			cn = nn
+			//			search = ns
+
+		}
+
+		if search == "" {
+			goto End
+		}
+
+		//Static node
+		if child = cn.findChild(search[0]); child != nil {
+			parent = cn
+			//			log.Printf("child=%p, cn=%p\n", child, cn)
+			cn = child
+			continue
+		}
+
+		if search != "" {
+			//			log.Printf("Not find %s\n", search)
+			return false
+		}
+
+	End:
+		//		log.Printf("ppath=%s\n", cn.ppath)
+		if parent != nil {
+			//			log.Printf("parent=%p, parent.children=%p, cn=%p\n",
+			//				parent, parent.children, cn)
+			parent.children = remove(parent.children, cn)
+
+		} else {
+			log.Println("parent is nil")
+			if cn.ppath == path {
+				cn.ppath = ""
+			}
+		}
+
+		return true
 	}
 }
